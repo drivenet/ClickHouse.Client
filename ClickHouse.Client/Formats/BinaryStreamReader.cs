@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Net;
 using System.Numerics;
 using System.Text;
@@ -123,5 +124,20 @@ namespace ClickHouse.Client.Formats
         public object Read(NestedType tupleType) => throw new NotSupportedException();
 
         private static object ClearDBNull(object value) => value is DBNull ? null : value;
+
+        public object Read(MapType mapType)
+        {
+            var dict = (IDictionary)Activator.CreateInstance(mapType.FrameworkType);
+
+            var length = reader.Read7BitEncodedInt();
+
+            for (var i = 0; i < length; i++)
+            {
+                var key = Read(mapType.KeyType);
+                var value = Read(mapType.ValueType);
+                dict.Add(key, value);
+            }
+            return dict;
+        }
     }
 }

@@ -75,6 +75,7 @@ namespace ClickHouse.Client.Types
             ReverseMapping[typeof(DateTime)] = new DateTimeType();
 
             RegisterParameterizedType<SimpleAggregateFunctionType>();
+            RegisterParameterizedType<MapType>();
         }
 
         private static void RegisterPlainType<T>()
@@ -146,6 +147,12 @@ namespace ClickHouse.Client.Types
             if (type.IsGenericType && type.GetGenericTypeDefinition().FullName.StartsWith("System.Tuple"))
             {
                 return new TupleType { UnderlyingTypes = type.GetGenericArguments().Select(ToClickHouseType).ToArray() };
+            }
+
+            if (type.IsGenericType && type.GetGenericTypeDefinition().FullName.StartsWith("System.Collections.Generic.Dictionary"))
+            {
+                var types = type.GetGenericArguments().Select(ToClickHouseType).ToArray();
+                return new MapType { UnderlyingTypes = Tuple.Create(types[0], types[1]) };
             }
 
             throw new ArgumentOutOfRangeException(nameof(type), "Unknown type: " + type.ToString());

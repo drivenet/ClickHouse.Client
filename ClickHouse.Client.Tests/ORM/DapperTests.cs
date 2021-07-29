@@ -19,7 +19,9 @@ namespace ClickHouse.Client.Tests.ORM
         // "The member value of type <xxxxxxxx> cannot be used as a parameter value"
         private static bool ShouldBeSupportedByDapper(string clickHouseType)
         {
-            if (clickHouseType.StartsWith("Tuple"))
+            if (clickHouseType.Contains("Tuple"))
+                return false;
+            if (clickHouseType.Contains("Map"))
                 return false;
             switch (clickHouseType)
             {

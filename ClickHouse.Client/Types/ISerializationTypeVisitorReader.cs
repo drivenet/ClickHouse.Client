@@ -57,5 +57,7 @@
         object Read(IPv6Type pv6Type);
 
         object Read(EnumType enumType);
+
+        object Read(MapType mapType);
     }
 }

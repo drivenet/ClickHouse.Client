@@ -29,6 +29,7 @@ namespace ClickHouse.Client.Tests
             var builder = GetConnectionStringBuilder();
             builder.Compression = compression;
             builder["set_session_timeout"] = 1; // Expire sessions quickly after test
+            builder["set_allow_experimental_map_type"] = 1; // Allow experimental types like 'map', 'polygon' etc.
             return new ClickHouseConnection(builder.ConnectionString);
         }
 
@@ -127,6 +128,9 @@ namespace ClickHouse.Client.Tests
 
             if (SupportedFeatures.HasFlag(FeatureFlags.SupportsIPv6))
                 yield return new DataTypeSample("IPv6", typeof(IPAddress), "toIPv6('2001:0db8:85a3:0000:0000:8a2e:0370:7334')", IPAddress.Parse("2001:0db8:85a3:0000:0000:8a2e:0370:7334"));
+
+            yield return new DataTypeSample("Map(String, UInt64)", typeof(Dictionary<string, ulong>), "map('A',1,'B',2)", new Dictionary<string, ulong> { { "A", 1 }, { "B", 2 } });
+            yield return new DataTypeSample("Map(UInt64, String)", typeof(Dictionary<ulong, string>), "map(1,'A',2,'B')", new Dictionary<ulong, string> { { 1, "A" }, { 2, "B" } });
         }
 
         [Test]

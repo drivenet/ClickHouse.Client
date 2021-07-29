@@ -70,6 +70,9 @@ namespace ClickHouse.Client.Formats
                 ClickHouseTypeCode.Tuple when type is TupleType tupleType && value is ITuple tuple =>
                 $"({string.Join(",", tupleType.UnderlyingTypes.Select((x, i) => InlineParameterFormatter.Format(x, tuple[i])))})",
 
+                ClickHouseTypeCode.Map when type is MapType mapType && value is IDictionary dict =>
+                $"{{{string.Join(",", dict.Keys.Cast<object>().Select(k => $"{Format(mapType.KeyType, k)}:{Format(mapType.ValueType, dict[k])}"))}}}",
+
                 _ => throw new NotSupportedException($"Cannot convert value {value} to type {type.TypeCode}")
             };
         }

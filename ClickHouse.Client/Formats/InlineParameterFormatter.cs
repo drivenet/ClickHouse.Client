@@ -87,6 +87,12 @@ namespace ClickHouse.Client.Formats
                     var tuple = (ITuple)value;
                     return $"({string.Join(",", tupleType.UnderlyingTypes.Select((x, i) => Format(x, tuple[i])))})";
 
+                case ClickHouseTypeCode.Map:
+                    var mapType = (MapType)type;
+                    var dict = (IDictionary)value;
+                    var strings = dict.Keys.Cast<object>().Select(k => $"{Format(mapType.KeyType, k)},{Format(mapType.ValueType, dict[k])}");
+                    return $"map({string.Join(",", strings)})";
+
                 default:
                     throw new NotSupportedException($"Cannot convert value {value} to type {type.TypeCode}");
             }
