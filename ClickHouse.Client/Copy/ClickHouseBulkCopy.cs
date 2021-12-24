@@ -114,9 +114,40 @@ namespace ClickHouse.Client.Copy
                 tasks[i] = Task.CompletedTask;
             }
 
-            foreach (var batch in rows.Batch(BatchSize))
+            var query = $"INSERT INTO {DestinationTableName} ({string.Join(", ", columnNames)}) FORMAT RowBinary";
+            bool useInlineQuery = connection.SupportedFeatures.HasFlag(FeatureFlags.SupportsInlineQuery);
+
+            var enumerator = rows.GetEnumerator();
+            bool hasMore = false;
+            do
             {
                 token.ThrowIfCancellationRequested();
+                var stream = new MemoryStream() { Capacity = 4 * 1024 };
+                int counter = 0;
+                using (var gzipStream = new BufferedStream(new GZipStream(stream, CompressionLevel.Fastest, true), 256 * 1024))
+                {
+                    if (useInlineQuery)
+                    {
+                        using var textWriter = new StreamWriter(gzipStream, Encoding.UTF8, 4 * 1024, true);
+                        textWriter.WriteLine(query);
+                    }
+
+                    using var writer = new ExtendedBinaryWriter(gzipStream);
+
+                    while ((hasMore = enumerator.MoveNext()) && counter < BatchSize)
+                    {
+                        var row = enumerator.Current;
+                        for (var i = 0; i < row.Length; i++)
+                        {
+                            columnTypes[i].Write(writer, row[i]);
+                        }
+                        counter++;
+                    }
+                }
+
+                token.ThrowIfCancellationRequested();
+                stream.Seek(0, SeekOrigin.Begin);
+
                 while (true)
                 {
                     var completedTaskIndex = Array.FindIndex(tasks, t => t.IsCompleted);
@@ -125,8 +156,11 @@ namespace ClickHouse.Client.Copy
                         // propagate exception if one happens
                         // 'await' instead of 'Wait()' to avoid dealing with AggregateException
                         await tasks[completedTaskIndex].ConfigureAwait(false);
-                        var task = PushBatch(batch, columnTypes, columnNames, token);
-                        tasks[completedTaskIndex] = task;
+                        tasks[completedTaskIndex] = connection.PostStreamAsync(useInlineQuery ? null : query, stream, true, token).ContinueWith(t =>
+                        {
+                            stream.Dispose();
+                            Interlocked.Add(ref rowsWritten, counter);
+                        });
                         break; // while (true); go to next batch
                     }
                     else
@@ -135,6 +169,8 @@ namespace ClickHouse.Client.Copy
                     }
                 }
             }
+            while (hasMore);
+
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
@@ -148,35 +184,5 @@ namespace ClickHouse.Client.Copy
         }
 
         private string GetColumnsExpression(IReadOnlyCollection<string> columns) => columns == null || columns.Count == 0 ? "*" : string.Join(",", columns);
-
-        private async Task PushBatch(ICollection<object[]> rows, ClickHouseType[] columnTypes, string[] columnNames, CancellationToken token)
-        {
-            var query = $"INSERT INTO {DestinationTableName} ({string.Join(", ", columnNames)}) FORMAT RowBinary";
-            bool useInlineQuery = connection.SupportedFeatures.HasFlag(FeatureFlags.SupportsInlineQuery);
-
-            using var stream = new MemoryStream() { Capacity = 512 * 1024 };
-            using (var gzipStream = new BufferedStream(new GZipStream(stream, CompressionLevel.Fastest, true), 256 * 1024))
-            {
-                if (useInlineQuery)
-                {
-                    using var textWriter = new StreamWriter(gzipStream, Encoding.UTF8, 4 * 1024, true);
-                    textWriter.WriteLine(query);
-                    query = null; // Query was already written to POST body
-                }
-
-                using var writer = new ExtendedBinaryWriter(gzipStream);
-                foreach (var row in rows)
-                {
-                    for (var i = 0; i < row.Length; i++)
-                    {
-                        columnTypes[i].Write(writer, row[i]);
-                    }
-                }
-            }
-            stream.Seek(0, SeekOrigin.Begin);
-
-            await connection.PostStreamAsync(query, stream, true, token).ConfigureAwait(false);
-            Interlocked.Add(ref rowsWritten, rows.Count);
-        }
     }
 }
