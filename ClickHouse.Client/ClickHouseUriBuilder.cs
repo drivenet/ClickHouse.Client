@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Web;
+
 using ClickHouse.Client.Utility;
 
 namespace ClickHouse.Client
@@ -33,7 +33,7 @@ namespace ClickHouse.Client
 
         public override string ToString()
         {
-            var parameters = HttpUtility.ParseQueryString(string.Empty); // NameValueCollection but a special one
+            var parameters = HttpValueCollection.Parse(string.Empty); // NameValueCollection but a special one
             parameters.Set("enable_http_compression", UseCompression.ToString(CultureInfo.InvariantCulture).ToLowerInvariant());
             parameters.Set("default_format", DefaultFormat);
             parameters.SetOrRemove("database", Database);
