@@ -6,9 +6,9 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+
 using ClickHouse.Client.Formats;
 using ClickHouse.Client.Types;
 using ClickHouse.Client.Utility;
@@ -151,7 +151,7 @@ namespace ClickHouse.Client.ADO.Readers
         public IPAddress GetIPAddress(int ordinal) => (IPAddress)GetValue(ordinal);
 
         // Custom extension
-        public ITuple GetTuple(int ordinal) => (ITuple)GetValue(ordinal);
+        public IDbTuple GetTuple(int ordinal) => (IDbTuple)GetValue(ordinal);
 
         public override bool Read()
         {

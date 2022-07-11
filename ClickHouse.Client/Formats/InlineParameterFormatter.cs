@@ -3,7 +3,7 @@ using System.Collections;
 using System.Globalization;
 using System.Linq;
 using System.Net;
-using System.Runtime.CompilerServices;
+
 using ClickHouse.Client.ADO.Parameters;
 using ClickHouse.Client.Types;
 using ClickHouse.Client.Utility;
@@ -86,7 +86,7 @@ namespace ClickHouse.Client.Formats
                     var array = enumerable.Cast<object>().Select(obj => Format(arrayType.UnderlyingType, obj));
                     return $"[{string.Join(",", array)}]";
 
-                case TupleType tupleType when value is ITuple tuple:
+                case TupleType tupleType when DbTuple.TryConvert(value, out var tuple):
                     return $"({string.Join(",", tupleType.UnderlyingTypes.Select((x, i) => Format(x, tuple[i])))})";
 
                 case MapType mapType when value is IDictionary dict:

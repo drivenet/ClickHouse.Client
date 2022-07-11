@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.CompilerServices;
+
 using ClickHouse.Client.ADO.Parameters;
 using ClickHouse.Client.Types;
 using ClickHouse.Client.Utility;
@@ -70,7 +70,7 @@ namespace ClickHouse.Client.Formats
                 case ArrayType arrayType when value is IEnumerable enumerable:
                     return $"[{string.Join(",", enumerable.Cast<object>().Select(obj => Format(arrayType.UnderlyingType, obj, true)))}]";
 
-                case TupleType tupleType when value is ITuple tuple:
+                case TupleType tupleType when DbTuple.TryConvert(value, out var tuple):
                     return $"({string.Join(",", tupleType.UnderlyingTypes.Select((x, i) => Format(x, tuple[i], true)))})";
 
                 case MapType mapType when value is IDictionary dict:

@@ -4,6 +4,7 @@ using System.Data.Common;
 using System.Linq;
 using System.Net;
 using ClickHouse.Client.ADO;
+using ClickHouse.Client.Types;
 using NUnit.Framework;
 
 namespace ClickHouse.Client.Tests
@@ -104,8 +105,8 @@ namespace ClickHouse.Client.Tests
             yield return new DataTypeSample("LowCardinality(Nullable(String))", typeof(string), "CAST(NULL AS LowCardinality(Nullable(String)))", DBNull.Value);
             yield return new DataTypeSample("LowCardinality(String)", typeof(string), "toLowCardinality('lowcardinality')", "lowcardinality");
 
-            yield return new DataTypeSample("Tuple(Int8, String, Nullable(Int8))", typeof(Tuple<int, string, int?>), "tuple(1, 'a', 8)", Tuple.Create<int, string, int?>(1, "a", 8));
-            yield return new DataTypeSample("Tuple(Int32, Tuple(UInt8, String, Nullable(Int32)))", typeof(Tuple<int, Tuple<byte, string, int?>>), "tuple(123, tuple(5, 'a', 7))", Tuple.Create(123, Tuple.Create((byte)5, "a", 7)));
+            yield return new DataTypeSample("Tuple(Int8, String, Nullable(Int8))", typeof(DbTuple<sbyte, string, sbyte?>), "tuple(1, 'a', 8)", DbTuple.Create<sbyte, string, sbyte?>(1, "a", 8));
+            yield return new DataTypeSample("Tuple(Int32, Tuple(UInt8, String, Nullable(Int32)))", typeof(DbTuple<int, DbTuple<byte, string, int?>>), "tuple(123, tuple(5, 'a', 7))", DbTuple.Create(123, DbTuple.Create((byte)5, "a", new int?(7))));
 
             yield return new DataTypeSample("Date", typeof(DateTime), "toDateOrNull('1999-11-12')", new DateTime(1999, 11, 12, 0, 0, 0, DateTimeKind.Unspecified));
             yield return new DataTypeSample("DateTime('UTC')", typeof(DateTime), "toDateTime('1988-08-28 11:22:33', 'UTC')", new DateTime(1988, 08, 28, 11, 22, 33, DateTimeKind.Unspecified));

@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+
+using ClickHouse.Client.Types;
 using ClickHouse.Client.Utility;
+
 using NUnit.Framework;
 
 namespace ClickHouse.Client.Tests
@@ -15,12 +17,12 @@ namespace ClickHouse.Client.Tests
         {
             var items = string.Join(",", Enumerable.Range(1, count));
             var result = await connection.ExecuteScalarAsync($"select tuple({items})");
-            Assert.IsInstanceOf<ITuple>(result);
-            var tuple = result as ITuple;
+            Assert.IsInstanceOf<IDbTuple>(result);
+            var tuple = result as IDbTuple;
             Assert.AreEqual(count, tuple.Length);
             CollectionAssert.AreEqual(Enumerable.Range(1, count), AsEnumerable(tuple));
         }
 
-        private static IEnumerable<object> AsEnumerable(ITuple tuple) => Enumerable.Range(0, tuple.Length).Select(i => tuple[i]);
+        private static IEnumerable<object> AsEnumerable(IDbTuple tuple) => Enumerable.Range(0, tuple.Length).Select(i => tuple[i]);
     }
 }
