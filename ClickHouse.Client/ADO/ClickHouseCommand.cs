@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -147,17 +145,9 @@ namespace ClickHouse.Client.ADO
             if (commandParameters != null)
             {
                 await connection.EnsureOpenAsync().ConfigureAwait(false); // Preserve old behavior
-                if (connection.SupportedFeatures.HasFlag(FeatureFlags.SupportsHttpParameters))
+                foreach (ClickHouseDbParameter parameter in commandParameters)
                 {
-                    foreach (ClickHouseDbParameter parameter in commandParameters)
-                        uriBuilder.AddQueryParameter(parameter.ParameterName, HttpParameterFormatter.Format(parameter));
-                }
-                else
-                {
-                    var formattedParameters = new Dictionary<string, string>(commandParameters.Count);
-                    foreach (ClickHouseDbParameter parameter in commandParameters)
-                        formattedParameters.TryAdd(parameter.ParameterName, InlineParameterFormatter.Format(parameter));
-                    sqlQuery = SubstituteParameters(sqlQuery, formattedParameters);
+                    uriBuilder.AddQueryParameter(parameter.ParameterName, HttpParameterFormatter.Format(parameter));
                 }
             }
 
@@ -190,38 +180,6 @@ namespace ClickHouse.Client.ADO
                 return response.Headers.GetValues(queryIdHeader).FirstOrDefault();
             else
                 return null;
-        }
-
-        private static string SubstituteParameters(string query, IDictionary<string, string> parameters)
-        {
-            var builder = new StringBuilder(query.Length);
-
-            var paramStartPos = query.IndexOf('{');
-            var paramEndPos = -1;
-
-            while (paramStartPos != -1)
-            {
-                builder.Append(query.Substring(paramEndPos + 1, paramStartPos - paramEndPos - 1));
-
-                paramStartPos += 1;
-                paramEndPos = query.IndexOf('}', paramStartPos);
-                var param = query.Substring(paramStartPos, paramEndPos - paramStartPos);
-                var delimiterPos = param.LastIndexOf(':');
-                if (delimiterPos == -1)
-                    throw new NotSupportedException($"param {param} doesn`t have data type");
-                var name = param.Substring(0, delimiterPos);
-
-                if (!parameters.TryGetValue(name, out var value))
-                    throw new ArgumentOutOfRangeException($"Parameter {name} not found in parameters list");
-
-                builder.Append(value);
-
-                paramStartPos = query.IndexOf('{', paramEndPos);
-            }
-
-            builder.Append(query.Substring(paramEndPos + 1, query.Length - paramEndPos - 1));
-
-            return builder.ToString();
         }
     }
 }

@@ -31,7 +31,7 @@ namespace ClickHouse.Client.ADO
         private string session;
         private TimeSpan timeout;
         private Uri serverUri;
-        private FeatureFlags supportedFeatures;
+        private Feature supportedFeatures;
 
         static ClickHouseConnection()
         {
@@ -61,7 +61,7 @@ namespace ClickHouse.Client.ADO
         public ClickHouseConnection(string connectionString, HttpClient httpClient)
         {
             ConnectionString = connectionString;
-            this.httpClient = httpClient;
+            this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace ClickHouse.Client.ADO
                 session = builder.UseSession ? builder.SessionId ?? Guid.NewGuid().ToString() : null;
                 timeout = builder.Timeout;
 
-                foreach (var key in builder.Keys.Cast<string>().Where(k => k.StartsWith(CustomSettingPrefix)))
+                foreach (var key in builder.Keys.Cast<string>().Where(k => k.StartsWith(CustomSettingPrefix, true, CultureInfo.InvariantCulture)))
                 {
                     CustomSettings.Set(key.Replace(CustomSettingPrefix, string.Empty), builder[key]);
                 }
@@ -124,17 +124,19 @@ namespace ClickHouse.Client.ADO
         /// Gets enum describing which ClickHouse features are available on this particular server version
         /// Requires connection to be in Open state
         /// </summary>
-        public virtual FeatureFlags SupportedFeatures
+        public virtual Feature SupportedFeatures
         {
             get => state == ConnectionState.Open ? supportedFeatures : throw new InvalidOperationException();
             private set => supportedFeatures = value;
         }
 
+        internal HttpClient HttpClient => httpClient;
+
         public override DataTable GetSchema() => GetSchema(null, null);
 
-        public override DataTable GetSchema(string type) => GetSchema(type, null);
+        public override DataTable GetSchema(string collectionName) => GetSchema(collectionName, null);
 
-        public override DataTable GetSchema(string type, string[] restrictions) => SchemaDescriber.DescribeSchema(this, type, restrictions);
+        public override DataTable GetSchema(string collectionName, string[] restrictionValues) => SchemaDescriber.DescribeSchema(this, collectionName, restrictionValues);
 
         internal static async Task<HttpResponseMessage> HandleError(HttpResponseMessage response, string query)
         {
@@ -154,7 +156,7 @@ namespace ClickHouse.Client.ADO
 
         public override void Open() => OpenAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 
-        public override async Task OpenAsync(CancellationToken token)
+        public override async Task OpenAsync(CancellationToken cancellationToken)
         {
             if (State == ConnectionState.Open)
                 return;
@@ -165,7 +167,7 @@ namespace ClickHouse.Client.ADO
                 uriBuilder.CustomParameters.Add("query", versionQuery);
                 var request = new HttpRequestMessage(HttpMethod.Get, uriBuilder.ToString());
                 AddDefaultHttpHeaders(request.Headers);
-                var response = await HandleError(await HttpClient.SendAsync(request, token).ConfigureAwait(false), versionQuery).ConfigureAwait(false);
+                var response = await HandleError(await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false), versionQuery).ConfigureAwait(false);
                 var data = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
 
                 if (data.Length > 2 && data[0] == 0x1F && data[1] == 0x8B) // Check if response starts with GZip marker
@@ -208,7 +210,7 @@ namespace ClickHouse.Client.ADO
             }
 
             using var response = await HttpClient.SendAsync(postMessage, HttpCompletionOption.ResponseContentRead, token).ConfigureAwait(false);
-            await HandleError(response, sql).ConfigureAwait(false);
+            await ClickHouseConnection.HandleError(response, sql).ConfigureAwait(false);
         }
 
         public new ClickHouseCommand CreateCommand() => new ClickHouseCommand(this);
@@ -225,43 +227,45 @@ namespace ClickHouse.Client.ADO
             return new Version(parts.ElementAtOrDefault(0), parts.ElementAtOrDefault(1), parts.ElementAtOrDefault(2), parts.ElementAtOrDefault(3));
         }
 
-        internal static FeatureFlags GetFeatureFlags(Version serverVersion)
+        internal static Feature GetFeatureFlags(Version serverVersion)
         {
-            FeatureFlags flags = 0;
-            if (serverVersion > new Version(19, 11, 3, 11))
-            {
-                flags |= FeatureFlags.SupportsHttpParameters;
-            }
+            Feature flags = 0;
             if (serverVersion > new Version(20, 1, 2, 4))
             {
-                flags |= FeatureFlags.SupportsDateTime64;
+                flags |= Feature.DateTime64;
             }
             if (serverVersion > new Version(20, 5))
             {
-                flags |= FeatureFlags.SupportsInlineQuery;
+                flags |= Feature.InlineQuery;
             }
             if (serverVersion > new Version(20, 0))
             {
-                flags |= FeatureFlags.SupportsDecimal;
-                flags |= FeatureFlags.SupportsIPv6;
+                flags |= Feature.Decimals;
+                flags |= Feature.IPv6;
             }
             if (serverVersion > new Version(21, 0))
             {
-                flags |= FeatureFlags.SupportsUUIDParameters;
+                flags |= Feature.UUIDParameters;
             }
             if (serverVersion > new Version(21, 1, 2))
             {
-                flags |= FeatureFlags.SupportsMap;
+                flags |= Feature.Map;
             }
             if (serverVersion > new Version(21, 12))
             {
-                flags |= FeatureFlags.SupportsBool;
+                flags |= Feature.Bool;
+            }
+            if (serverVersion >= new Version(21, 9))
+            {
+                flags |= Feature.Date32;
+            }
+            if (serverVersion >= new Version(21, 6))
+            {
+                flags |= Feature.WideTypes;
             }
 
             return flags;
         }
-
-        internal HttpClient HttpClient => httpClient;
 
         internal ClickHouseUriBuilder CreateUriBuilder(string sql = null) => new ClickHouseUriBuilder(serverUri)
         {

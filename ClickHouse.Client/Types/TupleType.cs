@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Linq;
 
 using ClickHouse.Client.Formats;
@@ -51,7 +52,7 @@ namespace ClickHouse.Client.Types
             // Coerce the values into types which can be stored in the tuple
             for (int i = 0; i < count; i++)
             {
-                valuesCopy[i] = underlyingTypes[i].FrameworkType.IsSubclassOf(typeof(IConvertible)) ? Convert.ChangeType(values[i], underlyingTypes[i].FrameworkType) : values[i];
+                valuesCopy[i] = underlyingTypes[i].FrameworkType.IsSubclassOf(typeof(IConvertible)) ? Convert.ChangeType(values[i], underlyingTypes[i].FrameworkType, CultureInfo.InvariantCulture) : values[i];
             }
 
             return Activator.CreateInstance(frameworkType, valuesCopy);

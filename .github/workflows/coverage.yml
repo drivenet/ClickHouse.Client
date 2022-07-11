@@ -1,3 +1,5 @@
+# Test coverage build
+# Installs additional packages, so artifacts are "Tainted" and cannot be used
 name: Coverage
 
 on:
@@ -24,7 +26,7 @@ jobs:
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: '3.1.x'
+        dotnet-version: '6.x'
 
     - name: Install coverlet-collector
       run: dotnet add ClickHouse.Client.Tests/ClickHouse.Client.Tests.csproj package coverlet.collector
@@ -39,15 +41,36 @@ jobs:
       run: dotnet restore
 
     - name: Build
-      run: dotnet build --framework netcoreapp2.2 --configuration Release --no-restore ClickHouse.Client/ClickHouse.Client.csproj
+      run: dotnet build --framework netstandard2.1 --configuration Release --no-restore ClickHouse.Client/ClickHouse.Client.csproj
 
-    - name: Run test with coverage
-      run: dotnet test --framework netcoreapp3.1 --configuration Release --no-restore --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:SkipAutoProps=true
+    - name: Test with coverage
+      run: dotnet test --framework net6.0 --configuration Release --no-restore --verbosity normal --logger GitHubActions /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:SkipAutoProps=true
       env:
         CLICKHOUSE_CONNECTION: Host=localhost;Port=8123
 
-    - name: Upload coverage artifact
+    - name: Upload coverage xml
+      if: always()
       uses: actions/upload-artifact@v2
       with:
         name: coverage
-        path: ./ClickHouse.Client.Tests/coverage.opencover.xml
+        path: ./ClickHouse.Client.Tests/coverage.cobertura.xml
+
+    - name: Generate summary
+      if: always()
+      uses: irongut/CodeCoverageSummary@v1.2.0
+      with:
+        badge: true
+        filename: ./ClickHouse.Client.Tests/coverage.cobertura.xml
+        output: both
+        format: markdown
+        thresholds: '60 80'
+
+    - name: Post Actions Summary
+      run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
+
+    - name: Stick PR comment
+      uses: marocchino/sticky-pull-request-comment@v2
+      if: github.event_name == 'pull_request'
+      with:
+        recreate: true
+        path: code-coverage-results.md

@@ -24,7 +24,7 @@ namespace ClickHouse.Client.Tests
 
         public static IEnumerable<TestCaseData> TypedQueryParameters => TestUtilities.GetDataTypeSamples()
             // DB::Exception: There are no UInt128 literals in SQL
-            .Where(sample => !sample.ClickHouseType.Contains("UUID") || TestUtilities.SupportedFeatures.HasFlag(FeatureFlags.SupportsUUIDParameters))
+            .Where(sample => !sample.ClickHouseType.Contains("UUID") || TestUtilities.SupportedFeatures.HasFlag(Feature.UUIDParameters))
             // DB::Exception: Serialization is not implemented
             .Where(sample => sample.ClickHouseType != "Nothing")
             .Select(sample => new TestCaseData(sample.ExampleExpression, sample.ClickHouseType, sample.ExampleValue));
@@ -39,7 +39,7 @@ namespace ClickHouse.Client.Tests
             if (connection.ServerVersion.StartsWith("22.1.") && clickHouseType == "IPv6")
                 Assert.Ignore("IPv6 is broken in ClickHouse 22.1.2.2");
 
-            if (clickHouseType.StartsWith("DateTime64") || clickHouseType == "Date")
+            if (clickHouseType.StartsWith("DateTime64") || clickHouseType == "Date" || clickHouseType == "Date32")
                 Assert.Pass("Automatic type detection does not work for " + clickHouseType);
             if (clickHouseType.StartsWith("Enum"))
                 clickHouseType = "String";
@@ -98,7 +98,7 @@ namespace ClickHouse.Client.Tests
             command.AddParameter("var", clickHouseType, value);
 
             var result = (await command.ExecuteReaderAsync()).GetEnsureSingleRow();
-            Assert.AreEqual(result[0], result[1]);
+            Assert.AreEqual(result[1], result[0]);
 
             if (value is null || value is DBNull)
             {

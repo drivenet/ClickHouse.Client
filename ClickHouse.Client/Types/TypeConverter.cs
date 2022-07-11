@@ -28,11 +28,15 @@ namespace ClickHouse.Client.Types
             RegisterPlainType<Int16Type>();
             RegisterPlainType<Int32Type>();
             RegisterPlainType<Int64Type>();
+            RegisterPlainType<Int128Type>();
+            RegisterPlainType<Int256Type>();
 
             RegisterPlainType<UInt8Type>();
             RegisterPlainType<UInt16Type>();
             RegisterPlainType<UInt32Type>();
             RegisterPlainType<UInt64Type>();
+            RegisterPlainType<UInt128Type>();
+            RegisterPlainType<UInt256Type>();
 
             // Floating point types
             RegisterPlainType<Float32Type>();
@@ -49,6 +53,7 @@ namespace ClickHouse.Client.Types
 
             // DateTime types
             RegisterPlainType<DateType>();
+            RegisterPlainType<Date32Type>();
             RegisterParameterizedType<DateTimeType>();
             RegisterParameterizedType<DateTime64Type>();
 
@@ -143,12 +148,12 @@ namespace ClickHouse.Client.Types
                 return new NullableType() { UnderlyingType = ToClickHouseType(underlyingType) };
             }
 
-            if (type.IsGenericType && type.GetGenericTypeDefinition().FullName.StartsWith("System.Tuple"))
+            if (type.IsGenericType && type.GetGenericTypeDefinition().FullName.StartsWith("System.Tuple", StringComparison.InvariantCulture))
             {
                 return new TupleType { UnderlyingTypes = type.GetGenericArguments().Select(ToClickHouseType).ToArray() };
             }
 
-            if (type.IsGenericType && type.GetGenericTypeDefinition().FullName.StartsWith("System.Collections.Generic.Dictionary"))
+            if (type.IsGenericType && type.GetGenericTypeDefinition().FullName.StartsWith("System.Collections.Generic.Dictionary", StringComparison.InvariantCulture))
             {
                 var types = type.GetGenericArguments().Select(ToClickHouseType).ToArray();
                 return new MapType { UnderlyingTypes = Tuple.Create(types[0], types[1]) };

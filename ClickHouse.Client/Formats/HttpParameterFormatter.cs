@@ -33,12 +33,16 @@ namespace ClickHouse.Client.Formats
                 case FloatType ft:
                     return Convert.ToString(value, CultureInfo.InvariantCulture);
                 case DecimalType dt:
-                    return Convert.ToDecimal(value).ToString(CultureInfo.InvariantCulture);
+                    return Convert.ToDecimal(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
 
                 case DateType dt when value is DateTimeOffset @do:
-                    return @do.Date.ToString("yyyy-MM-dd");
+                    return @do.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
                 case DateType dt:
-                    return Convert.ToDateTime(value).ToString("yyyy-MM-dd");
+                    return Convert.ToDateTime(value, CultureInfo.InvariantCulture).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                case Date32Type dt when value is DateTimeOffset @do:
+                    return @do.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                case Date32Type dt:
+                    return Convert.ToDateTime(value, CultureInfo.InvariantCulture).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
                 case StringType st:
                 case FixedStringType tt:
@@ -78,7 +82,7 @@ namespace ClickHouse.Client.Formats
                     return $"{{{string.Join(",", strings)}}}";
 
                 default:
-                    throw new Exception($"Cannot convert {value} to {type}");
+                    throw new ArgumentException($"Cannot convert {value} to {type}");
             }
         }
     }
